@@ -8,10 +8,12 @@
 
 module Main where
 
+import GHC.Generics
 import FSL
 import Data.List
 import           Development.Shake
 import Data.Csv
+import qualified Data.ByteString.Lazy.Char8 as B
 
 pas :: [FilePath]
 pas = [
@@ -78,17 +80,18 @@ data DWIPairInfo = DWIPairInfo
     negDWI :: String,
     numPosB0s :: Int,
     numNegB0s :: Int,
-    posB0indices :: [Int],
-    negB0indices :: [Int],
-    posB0indicesUsed :: [Int],
-    negB0indicesUsed :: [Int]
-  }
+    posB0indices :: String,
+    negB0indices :: String,
+    posB0indicesUsed :: String,
+    negB0indicesUsed :: String
+  } deriving Generic
 
 instance ToNamedRecord DWIPairInfo
 instance DefaultOrdered DWIPairInfo
 
 info :: DWIPair -> DWIPairInfo
-info (DWIPair {..}) = DWIPairInfo pDwi pDwi' (length b0s) (length b0s') (getB0Indices b0s) (getB0Indices b0s') idx idx'
+info (DWIPair {..}) = DWIPairInfo pDwi pDwi' (length b0s) (length b0s') (s $ getB0Indices b0s) (s $ getB0Indices b0s') (s idx) (s idx')
+  where s = intercalate " " . map show
 
 writePosB0s :: FilePath -> [DWIPair] -> Action ()
 writePosB0s out dwipairs =
@@ -152,7 +155,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
             (readbval $ tobval dwi) <*>
             (readbval $ tobval dwi')
       dwiPairs <- traverse readDWIPair $ zip pas aps
-      writeFile' summary $ encodeDefaultOrderedByName (map info dwiPairs)
+      writeFile' summary $ B.unpack $ encodeDefaultOrderedByName (map info dwiPairs)
       writeB0s outb0s dwiPairs
       writeCombined outvol dwiPairs
       writeIndex index dwiPairs
