@@ -1,0 +1,5 @@
+build
+*.nii.gz
+*.bval
+*.bvec
+dist
