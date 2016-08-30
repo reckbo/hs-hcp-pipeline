@@ -15,6 +15,7 @@ import           Development.Shake
 import Data.Csv
 import qualified Data.ByteString.Lazy.Char8 as B
 
+
 pas :: [FilePath]
 pas = [
   "BIO_0001.dwiPA1.nii.gz",
@@ -32,7 +33,10 @@ data PhaseDirection = RL | PA
 -- phaseDirection = PA
 
 b0maxbval :: Int
-b0maxbval = 45
+b0maxbval = 50
+
+b0dist :: Int
+b0dist = 45
 
 -- phaseLength :: FilePath -> Action PhaseLength
 -- phaseLength dwi = case phaseDirection of
@@ -55,7 +59,12 @@ acqParamsPos = "0 1 0 0.8"
 acqParamsNeg = "0 -1 0 0.8"
 
 getB0Indices :: [Int] -> [Int]
-getB0Indices = findIndices (< b0maxbval)
+getB0Indices bs = reverse $ foldl' f [i0] indices
+  where
+    f (i:is) i' = if (i' - i) >= b0dist
+                     then i':i:is
+                     else i:is
+    (i0:indices) = findIndices (< b0maxbval) bs
 
 mkDWIPair :: DWI -> DWI -> [Bvalue] -> [Bvalue] -> DWIPair
 mkDWIPair v v' bs bs'  = DWIPair v v' bs bs' b0indices b0indices'
@@ -63,14 +72,12 @@ mkDWIPair v v' bs bs'  = DWIPair v v' bs bs' b0indices b0indices'
     paired = zip bs bs'
     b0indices = getB0Indices . map fst $ paired
     b0indices' = getB0Indices . map snd $ paired
-    -- p = replicate (length b0indices) acqParamsPos
-    -- p' = replicate (length b0indices') acqParamsNeg
 
 data DWIPair = DWIPair
   { pDwi        :: FilePath
   , pDwi'       :: FilePath
-  , b0s        :: [Int]
-  , b0s'       :: [Int]
+  , bvalues        :: [Int]
+  , bvalues'       :: [Int]
   , idx        :: [Int]
   , idx'       :: [Int]
   }
@@ -82,6 +89,8 @@ data DWIPairInfo = DWIPairInfo
     numNegB0s :: Int,
     posB0indices :: String,
     negB0indices :: String,
+    posB0indicesWithMinDist :: String,
+    negB0indicesWithMinDist :: String,
     posB0indicesUsed :: String,
     negB0indicesUsed :: String
   } deriving Generic
@@ -90,8 +99,14 @@ instance ToNamedRecord DWIPairInfo
 instance DefaultOrdered DWIPairInfo
 
 info :: DWIPair -> DWIPairInfo
-info (DWIPair {..}) = DWIPairInfo pDwi pDwi' (length b0s) (length b0s') (s $ getB0Indices b0s) (s $ getB0Indices b0s') (s idx) (s idx')
-  where s = intercalate " " . map show
+info (DWIPair {..}) = DWIPairInfo
+  pDwi pDwi'
+  (length bvalues) (length bvalues')
+  (a2s . f $ bvalues) (a2s . f $ bvalues')
+  (a2s $ getB0Indices bvalues) (a2s $ getB0Indices bvalues')
+  (a2s idx) (a2s idx')
+  where a2s = unwords . map show
+        f = findIndices (< b0maxbval)
 
 writePosB0s :: FilePath -> [DWIPair] -> Action ()
 writePosB0s out dwipairs =
@@ -123,8 +138,8 @@ writeB0s out dwipairs = do
 writeIndex :: FilePath -> [DWIPair] -> Action ()
 writeIndex out dwipairs = writeFile' out (unlines $ indexPos ++ indexNeg)
   where
-    numPos = length $ concatMap b0s dwipairs
-    numNeg = length $ concatMap b0s' dwipairs
+    numPos = length $ concatMap bvalues dwipairs
+    numNeg = length $ concatMap bvalues' dwipairs
     numPosB0s = sum $ map (length . idx) dwipairs
     indexPos = replicate numPos "0"
     indexNeg = replicate  numNeg (show numPosB0s)
@@ -145,7 +160,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
       "build/topup/Pos_Neg_b0.nii.gz",
       "build/topup/acqparams.txt",
       "build/topup/index.txt",
-      "build/topup/summary.csv"] *>> \[outvol, outb0s, acqparams, index, summary] -> do
+      "build/topup/summary.csv"] *>> \[outvol, outb0s, acqparams, outindex, summary] -> do
       need $ pas ++ aps
       let
         readDWIPair (dwi, dwi') =
@@ -158,5 +173,5 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
       writeFile' summary $ B.unpack $ encodeDefaultOrderedByName (map info dwiPairs)
       writeB0s outb0s dwiPairs
       writeCombined outvol dwiPairs
-      writeIndex index dwiPairs
+      writeIndex outindex dwiPairs
       writeAcqparms acqparams dwiPairs
