@@ -1,5 +1,6 @@
 module FSL
     (
+      BValue (..),
       replaceExtension',
 
       extractVol,
@@ -16,10 +17,12 @@ module FSL
 
 import           Development.Shake
 import           Development.Shake.FilePath
-
 import           Text.Printf
 import Data.List
 import Control.Monad
+
+newtype BValue = BValue Int
+  deriving (Show, Eq, Ord)
 
 
 -- data Dir = Dir { v1::Double,
@@ -100,8 +103,8 @@ extractVol dwi idx
       mycmd = command [] "fslroi" [dwi, outPath, show idx, "1"]
       outPath = replaceExtension' dwi (printf "b0-%04d.nii.gz" idx)
 
-readbval :: FilePath -> Action [Int]
-readbval f = map read . words <$> readFile' f
+readbval :: FilePath -> Action [BValue]
+readbval f = map (BValue . read) . words <$> readFile' f
 
 writebval :: FilePath -> [Int] -> Action ()
 writebval out arr = writeFile' out (unwords . map show $ arr)
