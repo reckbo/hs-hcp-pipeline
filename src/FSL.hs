@@ -10,7 +10,10 @@ module FSL
       getDim4,
       readbval,
       tobval,
-      writebval
+      writebval,
+      tobvec,
+      readbvec,
+      writebvec
     ) where
 
 import           Development.Shake
@@ -23,16 +26,16 @@ newtype BValue = BValue Int
   deriving (Show, Eq, Ord)
 
 
--- data Dir = Dir { v1::Double,
---                 v2::Double,
---                 v3::Double }
+data Vec = Vec { vx::Double,
+                 vy::Double,
+                 vz::Double }
 
 -- readDWIBvec :: DWI -> Action [Dir]
 -- readDWIBvec dwi = readbvec (replaceExtension' f "bvec")
 --   where f = filepath dwi
 
--- instance Show Dir where
---   show (Dir v1 v2 v3) = printf "%f %f %f" v1 v2 v3
+instance Show Vec where
+  show (Vec v1 v2 v3) = printf "%f %f %f" v1 v2 v3
 
 trim :: String -> String
 trim = unwords . words
@@ -65,21 +68,23 @@ fslval key dwi = trim . fromStdout <$> command [] "fslval" [dwi, key]
 tobval :: FilePath -> FilePath
 tobval f = replaceExtension' f "bval"
 
--- tobvec :: FilePath -> FilePath
--- tobvec f = replaceExtension' f "bvec"
+tobvec :: FilePath -> FilePath
+tobvec f = replaceExtension' f "bvec"
 
--- readbvec :: FilePath ->  Action (Either String [Dir])
--- readbvec f = toVecs <$> map toArr <$> readFileLines f
---   where
---     toVecs [v1,v2,v3] = Right $ zipWith3 Dir v1 v2 v3
---     toVecs _ = Left $ "Seems to be an invalid bvecs file: " ++ f
---     toArr = map read . words
+-- Reads 3 x N
+readbvec :: FilePath ->  Action [Vec]
+readbvec f = toVecs <$> map toArr <$> readFileLines f
+  where
+    toVecs [v1,v2,v3] = zipWith3 Vec v1 v2 v3
+    toVecs _ = error $ "Seems to be an invalid bvecs file: " ++ f
+    -- toVecs _ = Left $ "Seems to be an invalid bvecs file: " ++ f
+    toArr = map read . words
 
--- writebvec :: FilePath -> [Dir] -> Action ()
--- writebvec f dirs = writeFile' f $ intercalate "\n" [v1',v2',v3']
---   where v1' = unwords . map (show . v1) $ dirs
---         v2' = unwords . map (show . v2) $ dirs
---         v3' = unwords . map (show . v3) $ dirs
+writebvec :: FilePath -> [Vec] -> Action ()
+writebvec f dirs = writeFile' f $ unlines [vx',vy',vz']
+  where vx' = unwords . map (show . vx) $ dirs
+        vy' = unwords . map (show . vy) $ dirs
+        vz' = unwords . map (show . vz) $ dirs
 
 -- mergebvecs :: FilePath -> [FilePath] -> Action ()
 -- mergebvecs outbvec fs = do
@@ -107,7 +112,7 @@ extractVol dwi idx
 readbval :: FilePath -> Action [BValue]
 readbval f = map (BValue . read) . words <$> readFile' f
 
-writebval :: FilePath -> [Int] -> Action ()
+writebval :: FilePath -> [BValue] -> Action ()
 writebval out arr = writeFile' out (unwords . map show $ arr)
 
 extractVols :: FilePath -> [Int] -> Action FilePath
