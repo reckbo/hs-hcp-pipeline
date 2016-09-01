@@ -25,7 +25,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
       command [] "bet" [hifib0, out, "-m", "-f", "0.2"]
 
     "build/topup/hifib0.nii.gz" %> \out -> do
-      let deps@[posb0,negb0,topupb0,params] =
+      let deps@[posb0,negb0,_,_,params] =
             ["build/topup/Pos_B0.nii.gz"
             ,"build/topup/Neg_B0.nii.gz"
             ,"build/topup/topup_Pos_Neg_b0_fieldcoef.nii.gz"
@@ -37,7 +37,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
       negb01 <- extractVol negb0 1
       unit $ command [] "applytopup"
         [printf "--imain=%s,%s" posb01 negb01
-        ,"--topup="++topupb0
+        ,"--topup=build/topup/topup_Pos_Neg_b0"
         ,"--datain="++params
         ,"--inindex=1,"++ show dimt
         ,"--out="++out]
