@@ -1,7 +1,7 @@
 module Main where
 
 import qualified Data.ByteString.Lazy.Char8 as B
-import           Data.Csv
+import           Data.Csv (encodeDefaultOrderedByName)
 import           Development.Shake
 import           Development.Shake.Config
 import           FSL
@@ -17,7 +17,32 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
 
 
     usingConfigFile "hcp.cfg"
-    want ["build/topup/nodif_brain.nii.gz"]
+    want ["build/eddy/eddy_unwarped_images.nii.gz"]
+
+
+    -- Eddy
+
+    "build/eddy/eddy_unwarped_images.nii.gz" %> \out -> do
+      let deps@[vol,mask,index,acqp,bvec,bval,topupb0] =
+               ["build/topup/PosNeg.nii.gz"
+               ,"build/topup/nodif_brain_mask.nii.gz"
+               ,"build/topup/index.txt"
+               ,"build/topup/acqparams.txt"
+               ,"build/preproc/PosNeg.bvec"
+               ,"build/preproc/PosNeg.bval"
+               ,"build/topup/topup_Pos_Neg_b0.nii.gz"]
+      need deps
+      unit $ command [] "eddy" ["--imain="++vol
+                               ,"--mask="++mask
+                               ,"--index="++index
+                               ,"--acqp="++acqp
+                               ,"--bvecs="++bvec
+                               ,"--bval="++bval
+                               ,"--fwhm=0"
+                               ,"--topup="++topupb0
+                               ,"--flm=quadratic"
+                               ,"-v"
+                               ,"--out="++out]
 
 
     -- Eddy
