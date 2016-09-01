@@ -28,7 +28,8 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
       let deps@[posb0,negb0,topupb0,params] =
             ["build/topup/Pos_B0.nii.gz"
             ,"build/topup/Neg_B0.nii.gz"
-            ,"build/topup/topup_Pos_Neg_b0.nii.gz"
+            ,"build/topup/topup_Pos_Neg_b0_fieldcoef.nii.gz"
+            ,"build/topup/topup_Pos_Neg_b0_movpar.txt"
             ,"build/topup/acqparams.txt"]
       need deps
       dimt <- getDim4 posb0
@@ -42,7 +43,8 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
         ,"--out="++out]
       liftIO $ removeFiles "." [posb01,negb01]
 
-    "build/topup/topup_Pos_Neg_b0.nii.gz" %> \out -> do
+    ["topup_Pos_Neg_b0_fieldcoef.nii.gz",
+     "topup_Pos_Neg_b0_movpar.txt"]  *>> \_ -> do
       let deps@[b0s, acqparams, topupcfg] =
             ["build/topup/B0s.nii.gz"
             ,"build/topup/acqparams.txt"
@@ -51,18 +53,18 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
       command [] "topup" ["--imain="++b0s
                          ,"--datain="++acqparams
                          ,"--config="++topupcfg
-                         ,"--out="++out
+                         ,"--out=build/topup/topup_Pos_Neg_b0"
                          ,"-v"]
 
     -- Preprocessing
 
-    [ "build/topup/PosNeg.nii.gz",
-      "build/topup/Pos_B0.nii.gz",
-      "build/topup/Neg_B0.nii.gz",
-      "build/topup/B0s.nii.gz",
-      "build/topup/acqparams.txt",
-      "build/topup/index.txt",
-      "build/topup/preproc-summary.csv"] *>>
+    ["build/topup/PosNeg.nii.gz",
+     "build/topup/Pos_B0.nii.gz",
+     "build/topup/Neg_B0.nii.gz",
+     "build/topup/B0s.nii.gz",
+     "build/topup/acqparams.txt",
+     "build/topup/index.txt",
+     "build/topup/preproc-summary.csv"] *>>
       \[outvol, pos_b0, neg_b0, b0s, acqparams, outindex, summaryCsv] -> do
         Just posdwis <- fmap words <$> getConfig "posdwis"
         Just negdwis <- fmap words <$> getConfig "negdwis"
