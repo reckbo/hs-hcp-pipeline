@@ -15,7 +15,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
         removeFilesAfter "build" ["//*"]
 
     usingConfigFile "hcp.cfg"
-    want ["build/topup/hifib0.nii.gz"]
+    want ["build/topup/nodif_brain.nii.gz"]
 
     -- Topup
 
@@ -32,7 +32,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
             ,"build/topup/topup_Pos_Neg_b0_movpar.txt"
             ,"build/topup/acqparams.txt"]
       need deps
-      dimt <- getDim4 posb0
+      dimt <- (+1) <$> getDim4 posb0
       posb01 <- extractVol posb0 1
       negb01 <- extractVol negb0 1
       unit $ command [] "applytopup"
