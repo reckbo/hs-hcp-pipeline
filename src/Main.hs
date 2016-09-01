@@ -10,16 +10,44 @@ import           Text.Printf
 
 main :: IO ()
 main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
+
     phony "clean" $ do
         putNormal "Cleaning files in build"
         removeFilesAfter "build" ["//*"]
 
+
     usingConfigFile "hcp.cfg"
     want ["build/topup/nodif_brain.nii.gz"]
 
+
+    -- Eddy
+
+    "build/eddy/eddy_unwarped_images.nii.gz" %> \out -> do
+      let deps@[vol,mask,index,acqp,bvec,bval,topupb0] =
+               ["build/topup/PosNeg.nii.gz"
+               ,"build/topup/nodif_brain_mask.nii.gz"
+               ,"build/topup/index.txt"
+               ,"build/topup/acqparams.txt"
+               ,"build/preproc/PosNeg.bvec"
+               ,"build/preproc/PosNeg.bval"
+               ,"build/topup/topup_Pos_Neg_b0.nii.gz"]
+      need deps
+      unit $ command [] "eddy" ["--imain="++vol
+                               ,"--mask="++mask
+                               ,"--index="++index
+                               ,"--acqp="++acqp
+                               ,"--bvecs="++bvec
+                               ,"--bval="++bval
+                               ,"--fwhm=0"
+                               ,"--topup="++topupb0
+                               ,"--flm=quadratic"
+                               ,"-v"
+                               ,"--out="++out]
+
     -- Topup
 
-    "build/topup/nodif_brain.nii.gz" %> \out -> do
+    ["build/topup/nodif_brain.nii.gz",
+     "build/topup/nodif_brain_mask.ni.gz"] *>> \[out,_] -> do
       let hifib0 = "build/topup/hifib0.nii.gz"
       need [hifib0]
       command [] "bet" [hifib0, out, "-m", "-f", "0.2"]
@@ -57,6 +85,20 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
                          ,"-v"]
 
     -- Preprocessing
+
+    "build/preproc/PosNeg.bval" %> \out -> do
+        Just posdwis <- fmap words <$> getConfig "posdwis"
+        Just negdwis <- fmap words <$> getConfig "negdwis"
+        posbvals <- concat <$> traverse (readbval . tobval) posdwis
+        negbvals <- concat <$> traverse (readbval . tobval) negdwis
+        writebval out $ posbvals ++ negbvals
+
+    "build/preproc/PosNeg.bvec" %> \out -> do
+        Just posdwis <- fmap words <$> getConfig "posdwis"
+        Just negdwis <- fmap words <$> getConfig "negdwis"
+        posbvecs <- concat <$> traverse (readbvec . tobvec) posdwis
+        negbvecs <- concat <$> traverse (readbvec . tobvec) negdwis
+        writebvec out $ posbvecs ++ negbvecs
 
     ["build/topup/PosNeg.nii.gz",
      "build/topup/Pos_B0.nii.gz",
