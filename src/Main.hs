@@ -3,9 +3,10 @@ module Main where
 import qualified Data.ByteString.Lazy.Char8 as B
 import           Data.Csv
 import           Development.Shake
+import           Development.Shake.Config
 import           FSL
 import           Preproc
-import Development.Shake.Config
+import           Text.Printf
 
 main :: IO ()
 main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
@@ -14,7 +15,32 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
         removeFilesAfter "build" ["//*"]
 
     usingConfigFile "hcp.cfg"
-    want ["build/topup/topup_Pos_Neg_b0.nii.gz"]
+    want ["build/topup/hifib0.nii.gz"]
+
+    -- Topup
+
+    "build/topup/nodif_brain.nii.gz" %> \out -> do
+      let hifib0 = "build/topup/hifib0.nii.gz"
+      need [hifib0]
+      command [] "bet" [hifib0, out, "-m", "-f", "0.2"]
+
+    "build/topup/hifib0.nii.gz" %> \out -> do
+      let deps@[posb0,negb0,topupb0,params] =
+            ["build/topup/Pos_B0.nii.gz"
+            ,"build/topup/Neg_B0.nii.gz"
+            ,"build/topup/topup_Pos_Neg_b0.nii.gz"
+            ,"build/topup/acqparams.txt"]
+      need deps
+      dimt <- getDim4 posb0
+      posb01 <- extractVol posb0 1
+      negb01 <- extractVol negb0 1
+      unit $ command [] "applytopup"
+        [printf "--imain=%s,%s" posb01 negb01
+        ,"--topup="++topupb0
+        ,"--datain="++params
+        ,"--inindex=1,"++ show dimt
+        ,"--out="++out]
+      liftIO $ removeFiles "." [posb01,negb01]
 
     "build/topup/topup_Pos_Neg_b0.nii.gz" %> \out -> do
       let deps@[b0s, acqparams, topupcfg] =
@@ -27,6 +53,8 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
                          ,"--config="++topupcfg
                          ,"--out="++out
                          ,"-v"]
+
+    -- Preprocessing
 
     [ "build/topup/PosNeg.nii.gz",
       "build/topup/Pos_B0.nii.gz",

@@ -2,17 +2,15 @@ module FSL
     (
       BValue (..),
       replaceExtension',
-
       extractVol,
       extractVols,
       mergeVols,
       trimVol,
-
+      getDim3,
+      getDim4,
       readbval,
       tobval,
-
       writebval
-
     ) where
 
 import           Development.Shake
@@ -57,6 +55,9 @@ trimVol dwi = do
 
 getDim3 :: FilePath -> Action Int
 getDim3 = fmap read . fslval "dim3"
+
+getDim4 :: FilePath -> Action Int
+getDim4 = fmap read . fslval "dim4"
 
 fslval :: String -> FilePath -> Action String
 fslval key dwi = trim . fromStdout <$> command [] "fslval" [dwi, key]
