@@ -3,7 +3,7 @@
 module Preproc
   (
     mkDWIPair
-    , phaseDirection (..)
+    , PhaseDirection (..)
     , writeB0s
     , writeCombined
     , writeIndex
@@ -29,16 +29,17 @@ b0maxbval = BValue 50
 b0dist :: Int
 b0dist = 45
 
-acqParamsPAPos :: String
-acqParamsPAPos = "0 1 0"
-acqParamsPANeg :: String
-acqParamsPANeg = "0 -1 0"
-acqParamsRLPos :: String
-acqParamsRLPos = "1 0 0"
-acqParamsRLNeg :: String
-acqParamsRLNeg = "-1 0 0"
+-- acqParamsPAPos :: String
+-- acqParamsPAPos = "0 1 0"
+-- acqParamsPANeg :: String
+-- acqParamsPANeg = "0 -1 0"
+-- acqParamsRLPos :: String
+-- acqParamsRLPos = "1 0 0"
+-- acqParamsRLNeg :: String
+-- acqParamsRLNeg = "-1 0 0"
 
 data PhaseDirection = RL | PA
+  deriving (Show, Read)
 
 readPhaseLength :: PhaseDirection -> FilePath -> Action PhaseLength
 readPhaseLength pedir dwi = case pedir of
@@ -105,20 +106,20 @@ numValidB0s :: (DWIPair -> DWIInfo) -> [DWIPair] -> Int
 numValidB0s posneg xs = sum $  map (length . _b0indicesToUse . posneg) xs
 
 writeAcqparams :: FilePath -> PhaseDirection -> EchoSpacing -> [DWIPair] -> Action ()
-writeAcqparams out pedir echo dwipairs = do
-  phase <- readPhaseLength (pos . head . dwipairs)
-  let readout = show $ readoutTime phase echo
-  writeFile' out $ unlines (acq ++ acq')
-  where
+writeAcqparams out phasedir echo dwipairs = do
+  phaselength <- readPhaseLength phasedir (_dwi . pos . head $ dwipairs)
+  let
+    readout = show $ readoutTime phaselength echo
     (p, n) = (numValidB0s pos dwipairs, numValidB0s neg dwipairs)
-    acqParamsPos =  case pedir of
+    acqParamsPos =  case phasedir of
       PA -> "0 1 0 " ++ readout
       RL -> "1 0 0 " ++ readout
-    acqParamsNeg = case pedir of
+    acqParamsNeg = case phasedir of
       PA -> "0 -1 0 " ++ readout
       RL -> "-1 0 0 " ++ readout
     acq = replicate p acqParamsPos
     acq' = replicate n acqParamsNeg
+  writeFile' out $ unlines (acq ++ acq')
 
 writeIndex :: FilePath -> [DWIPair] -> Action ()
 writeIndex out dwipairs = writeFile' out (unlines $ indexPos ++ indexNeg)

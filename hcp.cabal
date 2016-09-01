@@ -8,7 +8,7 @@ version:             0.1.0.0
 license:             BSD3
 license-file:        LICENSE
 author:              reckbo
-maintainer:          reckbo@bwh.harvard.edu
+maintainer:          eckbo@cim.mcgill.ca
 -- copyright:
 category:            System
 build-type:          Simple
