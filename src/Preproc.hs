@@ -99,6 +99,7 @@ writeB0s :: FilePath -> [DWIInfo] -> Action ()
 writeB0s out dwiinfos =
   do fs <- traverse writeB0 dwiinfos
      mergeVols out fs
+     trimVol out
   where
     writeB0 dwiinfo = extractVols (_dwi dwiinfo) (_b0indicesToUse dwiinfo)
 
