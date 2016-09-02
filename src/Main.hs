@@ -25,7 +25,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
       %> \out -> do
       let deps@[vol,mask,index,acqp,bvec,bval,_,_] =
                ["build/preproc/PosNeg.nii.gz"
-               ,"build/preproc/nodif_brain_mask.nii.gz"
+               ,"build/topup/nodif_brain_mask.nii.gz"
                ,"build/preproc/index.txt"
                ,"build/preproc/acqparams.txt"
                ,"build/preproc/PosNeg.bvec"
@@ -48,7 +48,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
     -- Topup
 
     ["build/topup/nodif_brain.nii.gz",
-     "build/topup/nodif_brain_mask.ni.gz"]
+     "build/topup/nodif_brain_mask.nii.gz"]
       *>> \[out,_] -> do
       let hifib0 = "build/topup/hifib0.nii.gz"
       need [hifib0]
