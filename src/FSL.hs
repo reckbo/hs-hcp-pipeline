@@ -33,10 +33,6 @@ data Vec = Vec { vx::Double,
                  vy::Double,
                  vz::Double }
 
--- readDWIBvec :: DWI -> Action [Dir]
--- readDWIBvec dwi = readbvec (replaceExtension' f "bvec")
---   where f = filepath dwi
-
 instance Show Vec where
   show (Vec v1 v2 v3) = printf "%f %f %f" v1 v2 v3
 
@@ -45,6 +41,12 @@ trim = unwords . words
 
 replaceExtension' :: FilePath -> String -> FilePath
 replaceExtension' f ext = replaceExtension (dropExtension f) ext
+
+dropExtension' :: FilePath -> FilePath
+dropExtension' = dropExtension . dropExtension
+
+insertSuffix :: FilePath -> String -> FilePath
+insertSuffix f suff = (++".nii.gz") . (++suff) . dropExtension' $ f
 
 trimVol :: FilePath -> Action ()
 trimVol dwi = do
@@ -89,28 +91,12 @@ writebvec f dirs = writeFile' f $ unlines [vx',vy',vz']
         vy' = unwords . map (show . vy) $ dirs
         vz' = unwords . map (show . vz) $ dirs
 
--- mergebvecs :: FilePath -> [FilePath] -> Action ()
--- mergebvecs outbvec fs = do
---                   dirs <- readbvecs fs
---                   case dirs of
---                     Right xs -> writebvec outbvec xs
---                     Left msg -> error msg
---                 where
---                   readbvecs :: [FilePath] -> Action (Either String [Dir])
---                   readbvecs fs = (fmap concat . sequenceA) <$> traverse readbvec fs
-
--- readbvals :: [FilePath] -> Action [Int]
--- readbvals fs = concat <$> traverse readbval fs
-
--- mergebvals :: FilePath -> [FilePath] -> Action ()
--- mergebvals out = readbvals >=> writebval out
-
 extractVol :: FilePath -> Int -> Action FilePath
 extractVol dwi idx
   = outPath <$ (mycmd :: Action ())
     where
       mycmd = command [] "fslroi" [dwi, outPath, show idx, "1"]
-      outPath = replaceExtension' dwi (printf "b0-%04d.nii.gz" idx)
+      outPath = insertSuffix dwi (printf "-%03d" idx)
 
 readbval :: FilePath -> Action [BValue]
 readbval f = map (BValue . read) . words <$> readFile' f
