@@ -1,5 +1,5 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DeriveGeneric        #-}
 module Preproc
   (
     mkDWIPair
@@ -18,6 +18,7 @@ import           Data.List
 import           Development.Shake
 import           FSL
 import           GHC.Generics
+import           Text.Printf
 
 type EchoSpacing = Float
 type PhaseLength = Int
@@ -28,15 +29,6 @@ b0maxbval = BValue 50
 
 b0dist :: Int
 b0dist = 45
-
--- acqParamsPAPos :: String
--- acqParamsPAPos = "0 1 0"
--- acqParamsPANeg :: String
--- acqParamsPANeg = "0 -1 0"
--- acqParamsRLPos :: String
--- acqParamsRLPos = "1 0 0"
--- acqParamsRLNeg :: String
--- acqParamsRLNeg = "-1 0 0"
 
 data PhaseDirection = RL | PA
   deriving (Show, Read)
@@ -110,7 +102,7 @@ writeAcqparams :: FilePath -> PhaseDirection -> EchoSpacing -> [DWIPair] -> Acti
 writeAcqparams out phasedir echo dwipairs = do
   phaselength <- readPhaseLength phasedir (_dwi . pos . head $ dwipairs)
   let
-    readout = show $ readoutTime phaselength echo
+    readout = printf "%.6f" $ readoutTime phaselength echo
     (p, n) = (numValidB0s pos dwipairs, numValidB0s neg dwipairs)
     acqParamsPos =  case phasedir of
       PA -> "0 1 0 " ++ readout
