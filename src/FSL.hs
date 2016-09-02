@@ -23,7 +23,10 @@ import Data.List
 import Control.Monad
 
 newtype BValue = BValue Int
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord)
+
+instance Show BValue where
+  show (BValue b) = show b
 
 
 data Vec = Vec { vx::Double,

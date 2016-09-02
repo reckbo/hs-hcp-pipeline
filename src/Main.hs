@@ -19,52 +19,27 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
     usingConfigFile "hcp.cfg"
     want ["build/eddy/eddy_unwarped_images.nii.gz"]
 
-
     -- Eddy
 
     "build/eddy/eddy_unwarped_images.nii.gz" %> \out -> do
-      let deps@[vol,mask,index,acqp,bvec,bval,topupb0] =
+      let deps@[vol,mask,index,acqp,bvec,bval,_,_] =
                ["build/topup/PosNeg.nii.gz"
                ,"build/topup/nodif_brain_mask.nii.gz"
                ,"build/topup/index.txt"
                ,"build/topup/acqparams.txt"
                ,"build/preproc/PosNeg.bvec"
                ,"build/preproc/PosNeg.bval"
-               ,"build/topup/topup_Pos_Neg_b0.nii.gz"]
+               ,"build/topup/topup_Pos_Neg_b0_fieldcoef.nii.gz"
+               ,"build/topup/topup_Pos_Neg_b0_movpar.txt"]
       need deps
       unit $ command [] "eddy" ["--imain="++vol
                                ,"--mask="++mask
                                ,"--index="++index
                                ,"--acqp="++acqp
                                ,"--bvecs="++bvec
-                               ,"--bval="++bval
+                               ,"--bvals="++bval
                                ,"--fwhm=0"
-                               ,"--topup="++topupb0
-                               ,"--flm=quadratic"
-                               ,"-v"
-                               ,"--out="++out]
-
-
-    -- Eddy
-
-    "build/eddy/eddy_unwarped_images.nii.gz" %> \out -> do
-      let deps@[vol,mask,index,acqp,bvec,bval,topupb0] =
-               ["build/topup/PosNeg.nii.gz"
-               ,"build/topup/nodif_brain_mask.nii.gz"
-               ,"build/topup/index.txt"
-               ,"build/topup/acqparams.txt"
-               ,"build/preproc/PosNeg.bvec"
-               ,"build/preproc/PosNeg.bval"
-               ,"build/topup/topup_Pos_Neg_b0.nii.gz"]
-      need deps
-      unit $ command [] "eddy" ["--imain="++vol
-                               ,"--mask="++mask
-                               ,"--index="++index
-                               ,"--acqp="++acqp
-                               ,"--bvecs="++bvec
-                               ,"--bval="++bval
-                               ,"--fwhm=0"
-                               ,"--topup="++topupb0
+                               ,"--topup=build/topup/topup_Pos_Neg_b0"
                                ,"--flm=quadratic"
                                ,"-v"
                                ,"--out="++out]
