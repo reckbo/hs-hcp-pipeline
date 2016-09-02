@@ -24,10 +24,10 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
     "build/eddy/eddy_unwarped_images.nii.gz"
       %> \out -> do
       let deps@[vol,mask,index,acqp,bvec,bval,_,_] =
-               ["build/topup/PosNeg.nii.gz"
-               ,"build/topup/nodif_brain_mask.nii.gz"
-               ,"build/topup/index.txt"
-               ,"build/topup/acqparams.txt"
+               ["build/preproc/PosNeg.nii.gz"
+               ,"build/preproc/nodif_brain_mask.nii.gz"
+               ,"build/preproc/index.txt"
+               ,"build/preproc/acqparams.txt"
                ,"build/preproc/PosNeg.bvec"
                ,"build/preproc/PosNeg.bval"
                ,"build/topup/topup_Pos_Neg_b0_fieldcoef.nii.gz"
@@ -57,11 +57,11 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
     "build/topup/hifib0.nii.gz"
       %> \out -> do
       let deps@[posb0,negb0,_,_,params] =
-            ["build/topup/Pos_B0.nii.gz"
-            ,"build/topup/Neg_B0.nii.gz"
+            ["build/preproc/Pos_B0.nii.gz"
+            ,"build/preproc/Neg_B0.nii.gz"
             ,"build/topup/topup_Pos_Neg_b0_fieldcoef.nii.gz"
             ,"build/topup/topup_Pos_Neg_b0_movpar.txt"
-            ,"build/topup/acqparams.txt"]
+            ,"build/preproc/acqparams.txt"]
       need deps
       dimt <- (+1) <$> getDim4 posb0
       posb01 <- extractVol posb0 1
@@ -73,12 +73,12 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
                                      ,"--out="++out]
       liftIO $ removeFiles "." [posb01,negb01]
 
-    ["topup_Pos_Neg_b0_fieldcoef.nii.gz",
-     "topup_Pos_Neg_b0_movpar.txt"]
+    ["build/topup/topup_Pos_Neg_b0_fieldcoef.nii.gz",
+     "build/topup/topup_Pos_Neg_b0_movpar.txt"]
       *>> \_ -> do
       let deps@[b0s, acqparams, topupcfg] =
-            ["build/topup/B0s.nii.gz"
-            ,"build/topup/acqparams.txt"
+            ["build/preproc/B0s.nii.gz"
+            ,"build/preproc/acqparams.txt"
             ,"b02b0.cnf"]
       need deps
       command [] "topup" ["--imain="++b0s
@@ -105,13 +105,13 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
         negbvecs <- concat <$> traverse (readbvec . tobvec) negdwis
         writebvec out $ posbvecs ++ negbvecs
 
-    ["build/topup/PosNeg.nii.gz",
-     "build/topup/Pos_B0.nii.gz",
-     "build/topup/Neg_B0.nii.gz",
-     "build/topup/B0s.nii.gz",
-     "build/topup/acqparams.txt",
-     "build/topup/index.txt",
-     "build/topup/preproc-summary.csv"]
+    ["build/preproc/PosNeg.nii.gz",
+     "build/preproc/Pos_B0.nii.gz",
+     "build/preproc/Neg_B0.nii.gz",
+     "build/preproc/B0s.nii.gz",
+     "build/preproc/acqparams.txt",
+     "build/preproc/index.txt",
+     "build/preproc/summary.csv"]
       *>> \[outvol, pos_b0, neg_b0, b0s, acqparams, outindex, summaryCsv] -> do
         let
           readDWIPair (pid, dwi, dwi') = mkDWIPair <$> pure pid <*>
@@ -125,11 +125,11 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
         need $ posdwis ++ negdwis
         ps <- traverse readDWIPair $ zip3 [1..] posdwis negdwis
         writeFile' summaryCsv $ B.unpack $ encodeDefaultOrderedByName (concatMap toRecords ps)
-        writeB0s pos_b0 (map pos ps)
-        writeB0s neg_b0 (map neg ps)
-        mergeVols b0s [pos_b0, neg_b0]
-        writeCombined outvol ps
         writeIndex outindex ps
         Just phasedir <- fmap read <$> getConfig "phase"
         Just echospacing <- fmap read <$> getConfig "echospacing"
         writeAcqparams acqparams phasedir echospacing ps
+        writeB0s pos_b0 (map pos ps)
+        writeB0s neg_b0 (map neg ps)
+        mergeVols b0s [pos_b0, neg_b0]
+        writeCombined outvol ps

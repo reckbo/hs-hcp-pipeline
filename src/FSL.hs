@@ -58,9 +58,6 @@ trimVol dwi = do
       copyFile' d tmpfile
       command [] "fslroi" $ [tmpfile,dwi] ++ map show ([0,-1,0,-1,1,-1] :: [Int])
 
--- numDirs :: FilePath -> Action Int
--- numDirs dwi = read <$> fslval "dim4" dwi
-
 getDim3 :: FilePath -> Action Int
 getDim3 = fmap read . fslval "dim3"
 
@@ -73,6 +70,12 @@ fslval key dwi = trim . fromStdout <$> command [] "fslval" [dwi, key]
 tobval :: FilePath -> FilePath
 tobval f = replaceExtension' f "bval"
 
+readbval :: FilePath -> Action [BValue]
+readbval f = map (BValue . read) . words <$> readFile' f
+
+writebval :: FilePath -> [BValue] -> Action ()
+writebval out arr = writeFile' out (unwords . map show $ arr)
+
 tobvec :: FilePath -> FilePath
 tobvec f = replaceExtension' f "bvec"
 
@@ -82,7 +85,6 @@ readbvec f = toVecs <$> map toArr <$> readFileLines f
   where
     toVecs [v1,v2,v3] = zipWith3 Vec v1 v2 v3
     toVecs _ = error $ "Seems to be an invalid bvecs file: " ++ f
-    -- toVecs _ = Left $ "Seems to be an invalid bvecs file: " ++ f
     toArr = map read . words
 
 writebvec :: FilePath -> [Vec] -> Action ()
@@ -97,12 +99,6 @@ extractVol dwi idx
     where
       mycmd = command [] "fslroi" [dwi, outPath, show idx, "1"]
       outPath = insertSuffix dwi (printf "-%03d" idx)
-
-readbval :: FilePath -> Action [BValue]
-readbval f = map (BValue . read) . words <$> readFile' f
-
-writebval :: FilePath -> [BValue] -> Action ()
-writebval out arr = writeFile' out (unwords . map show $ arr)
 
 extractVols :: FilePath -> [Int] -> Action FilePath
 extractVols dwi idx

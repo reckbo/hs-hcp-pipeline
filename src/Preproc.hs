@@ -9,7 +9,6 @@ module Preproc
     , writeIndex
     , writeAcqparams
     , DWIPair (..)
-
   ) where
 
 import           Data.Csv
@@ -115,13 +114,30 @@ writeAcqparams out phasedir echo dwipairs = do
   writeFile' out $ unlines (acq ++ acq')
 
 writeIndex :: FilePath -> [DWIPair] -> Action ()
-writeIndex out dwipairs = writeFile' out (unlines $ indexPos ++ indexNeg)
+writeIndex out dwipairs = writeFile' out (unlines $ map show $ mkIndex dwipairs)
+
+mkIndex :: [DWIPair] -> [Int]
+mkIndex dwipairs = mkIndex' $ addLast b0indices size
   where
-    numVols posneg = sum . map (_size . posneg)
-    indexPos = replicate (numVols pos dwipairs) "0"
-    indexNeg = replicate (numVols neg dwipairs) (show $ 1 +  numValidB0s pos dwipairs)
+    posSizes = map (_size . pos) dwipairs
+    negSizes = map (_size . neg) dwipairs
+    sizes = scanl (+) 0 $ posSizes ++ negSizes
+    size = head . reverse $ sizes
+    posb0indices = map (_b0indicesToUse . pos) dwipairs
+    negb0indices = map (_b0indicesToUse . neg) dwipairs
+    b0indices = concat $ zipWith (\is sz -> map (+sz) is) (posb0indices++negb0indices) sizes
+    mkIndex' is = reverse $ foldl g [] is
+      where g res i =
+              let dx = i - length res
+                  val = case res of
+                    [] -> 1
+                    _ -> 1 + head res
+              in (replicate dx val) ++ res
 
 writeCombined :: FilePath -> [DWIPair] -> Action ()
 writeCombined out dwipairs = do
   mergeVols out $ map (_dwi . pos) dwipairs ++ map (_dwi . neg) dwipairs
   trimVol out
+
+addLast :: [a] -> a -> [a]
+addLast xs y = reverse . (y:) . reverse $ xs
