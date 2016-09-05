@@ -7,6 +7,7 @@ import           Development.Shake.Config
 import           FSL
 import           Preproc
 import           Text.Printf
+import Data.List (transpose)
 
 main :: IO ()
 main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
@@ -111,8 +112,11 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
      "build/preproc/B0s.nii.gz",
      "build/preproc/acqparams.txt",
      "build/preproc/index.txt",
-     "build/preproc/summary.csv"]
-      *>> \[outvol, pos_b0, neg_b0, b0s, acqparams, outindex, summaryCsv] -> do
+     "build/preproc/summary.csv",
+     "build/preproc/Pos_SeriesVolNum.txt",
+     "build/preproc/Neg_SeriesVolNum.txt"]
+      *>> \[outvol, pos_b0, neg_b0, b0s, acqparams, outindex, summaryCsv,
+            posseries, negseries] -> do
         let
           readDWIPair (pid, dwi, dwi') = mkDWIPair <$> pure pid <*>
                                                        pure dwi <*>
@@ -126,6 +130,12 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
         ps <- traverse readDWIPair $ zip3 [1..] posdwis negdwis
         writeFile' summaryCsv $ B.unpack $ encodeDefaultOrderedByName (concatMap toRecords ps)
         writeIndex outindex ps
+        let
+          seriesPos = zipWith (\x y -> printf "%d %d" x y) minsizes $ map (_size.pos) ps
+          seriesNeg = zipWith (\x y -> printf "%d %d" x y) minsizes $ map (_size.neg) ps
+          minsizes = zipWith min (map (_size.pos) $ ps) (map (_size.neg) $ ps)
+        writeFile' posseries $ unlines seriesPos
+        writeFile' negseries $ unlines seriesNeg
         Just phasedir <- fmap read <$> getConfig "phase"
         Just echospacing <- fmap read <$> getConfig "echospacing"
         writeAcqparams acqparams phasedir echospacing ps

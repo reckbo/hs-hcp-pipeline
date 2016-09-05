@@ -9,6 +9,7 @@ module Preproc
     , writeIndex
     , writeAcqparams
     , DWIPair (..)
+    , DWIInfo (..)
   ) where
 
 import           Data.Csv
@@ -83,7 +84,9 @@ instance ToField [Int] where
 instance ToNamedRecord DWIInfo
 instance DefaultOrdered DWIInfo
 
-data DWIPair = DWIPair { pos :: DWIInfo, neg :: DWIInfo }
+data DWIPair = DWIPair
+  { pos :: DWIInfo
+  , neg :: DWIInfo }
   deriving Show
 
 writeB0s :: FilePath -> [DWIInfo] -> Action ()
