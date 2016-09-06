@@ -15,7 +15,8 @@ import System.FilePath
 main :: IO ()
 main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
     usingConfigFile "hcp.cfg"
-    want ["build/eddy/eddy_unwarped_images.nii.gz"]
+    want ["build/data/data.nii.gz"
+         ,"build/data/nodif.nii.gz"]
 
     phony "clean" $ do
         putNormal "Cleaning files in build"
@@ -63,7 +64,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
       *>> \[_,_,nodif] -> do
       let dat = "build/data/data.nii.gz"
       need [dat]
-      unit $ command [] "fslmaths" [dat, "-thr", dat]
+      unit $ command [] "fslmaths" [dat, "-thr", "0", dat]
       unit $ command [] "bet" [dat , "build/data/nodif_brain" , "-m" , "-f" , "0.1"]
       unit $ command [] "fslroi" [dat, nodif, "0", "1"]
 
