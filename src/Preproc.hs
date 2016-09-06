@@ -12,13 +12,18 @@ module Preproc
     , DWIInfo (..)
   ) where
 
-import           Data.Csv
+-- import           Data.Csv
+import Data.Yaml
 import           Data.Function
 import           Data.List
 import           Development.Shake
 import           FSL
 import           GHC.Generics
 import           Text.Printf
+-- import Data.Vector (toList)
+import Data.Function
+-- import qualified Data.ByteString.Internal.ByteString as B
+
 
 type EchoSpacing = Float
 type PhaseLength = Int
@@ -51,27 +56,24 @@ getValidB0Indices bs = reverse $ foldl' f [i0] indices
     f _ _ = error "getValideB0Indices: DWI must have at least two b-values."
     (i0:indices) = findIndices (< b0maxbval) bs
 
-mkDWIInfo :: Int -> DWI -> [BValue] -> Int -> DWIInfo
-mkDWIInfo pid dwi bs matchingLength
+mkDWIInfo :: DWI -> [BValue] -> Int -> DWIInfo
+mkDWIInfo dwi bs matchingLength
   = DWIInfo
-  pid
   dwi
   (length bs)
   (findIndices (< b0maxbval) bs)
   (getValidB0Indices bs)
   (filter (< matchingLength) $ getValidB0Indices bs)
 
-mkDWIPair :: Int -> DWI -> DWI -> [BValue] -> [BValue] -> DWIPair
-mkDWIPair pid dwi dwi' bs bs'
+mkDWIPair :: DWI -> DWI -> [BValue] -> [BValue] -> DWIPair
+mkDWIPair dwi dwi' bs bs'
   = DWIPair
-  (mkDWIInfo pid dwi bs matchingLength)
-  (mkDWIInfo pid dwi' bs' matchingLength)
+  (mkDWIInfo dwi bs matchingLength)
+  (mkDWIInfo dwi' bs' matchingLength)
   where matchingLength = (min`on`length) bs bs'
 
 data DWIInfo = DWIInfo
-    {
-     _pairId               :: Int
-    ,_dwi                  :: FilePath
+    {_dwi                  :: FilePath
     ,_size                 :: Int
     ,_b0indices            :: [Int]
     ,_b0indicesWithMinDist :: [Int]
@@ -79,15 +81,31 @@ data DWIInfo = DWIInfo
     }
   deriving (Show, Generic)
 
-instance ToField [Int] where
-  toField = toField . unwords . map show
-instance ToNamedRecord DWIInfo
-instance DefaultOrdered DWIInfo
+-- instance ToField [Int] where
+--   toField = toField . unwords . map show
+-- instance ToNamedRecord DWIInfo
+-- instance FromNamedRecord DWIInfo
+-- instance DefaultOrdered DWIInfo
+
+instance ToJSON DWIInfo
+instance FromJSON DWIInfo
 
 data DWIPair = DWIPair
   { pos :: DWIInfo
   , neg :: DWIInfo }
-  deriving Show
+  deriving (Show, Generic)
+
+instance ToJSON DWIPair
+instance FromJSON DWIPair
+
+-- dwiPairsFromCsv :: String -> [DWIPair]
+-- dwiPairsFromCsv csv =
+--   let
+--     infos = fmap toList $ decode $ B.pack csv
+--   in
+--     case infos of
+--       (Left msg) -> error msg
+--       Right infos -> map (\[i,i'] -> DWIPair i i') $ groupBy ((==)`on`_pairId) infos
 
 writeB0s :: FilePath -> [DWIInfo] -> Action ()
 writeB0s out dwiinfos =

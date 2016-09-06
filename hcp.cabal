@@ -27,6 +27,6 @@ executable hcp
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.8, cassava >= 0.4.5.0, process, shake, text >= 1.2.2.1, bytestring >= 0.10.8.1
+  build-depends:       base >=4.8, cassava >= 0.4.5.0, process, shake, text >= 1.2.2.1, bytestring >= 0.10.8.1, yaml, filepath
   hs-source-dirs:      src
   default-language:    Haskell2010
