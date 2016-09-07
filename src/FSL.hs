@@ -2,7 +2,9 @@ module FSL
     (
       BValue (..),
       replaceExtension',
+      extractVol_,
       extractVol,
+      extractVols_,
       extractVols,
       mergeVols,
       trimVol,
@@ -93,21 +95,25 @@ writebvec f dirs = writeFile' f $ unlines [vx',vy',vz']
         vy' = unwords . map (show . vy) $ dirs
         vz' = unwords . map (show . vz) $ dirs
 
+extractVol_ :: FilePath -> FilePath -> Int -> Action ()
+extractVol_ out dwi idx = command [] "fslroi" [dwi, out, show idx, "1"]
+
 extractVol :: FilePath -> Int -> Action FilePath
 extractVol dwi idx
-  = outPath <$ (mycmd :: Action ())
-    where
-      mycmd = command [] "fslroi" [dwi, outPath, show idx, "1"]
-      outPath = insertSuffix dwi (printf "-%03d" idx)
+  = out <$ extractVol_ out dwi idx
+  where
+    out = insertSuffix dwi (printf "-%03d" idx)
 
 extractVols :: FilePath -> [Int] -> Action FilePath
-extractVols dwi idx
-  = do
-    fs <- traverse (extractVol dwi) idx
-    mergeVols out fs
-    return out
+extractVols dwi idx = extractVols_ out dwi idx >> return out
   where
     out = replaceExtension' dwi (printf "%s.nii.gz" (intercalate "-" $ map show idx))
+
+extractVols_ :: FilePath -> FilePath -> [Int] -> Action ()
+extractVols_ out dwi idx
+ = do
+    fs <- traverse (extractVol dwi) idx
+    mergeVols out fs
 
 mergeVols :: FilePath -> [FilePath] -> Action ()
 mergeVols out vols = unit $ command [] "fslmerge" (["-t", out] ++ vols)

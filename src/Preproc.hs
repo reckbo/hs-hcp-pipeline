@@ -1,29 +1,59 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleInstances #-}
 module Preproc
-  (
-    mkDWIPair
-    , PhaseDirection (..)
-    , writeB0s
-    , writeCombined
-    , writeIndex
-    , writeAcqparams
+  (   DWIInfo (..)
     , DWIPair (..)
-    , DWIInfo (..)
+    , PhaseDirection (..)
+    , DirType (..)
+    , mkDWIPair
+    , readoutTime
+    , writeB0s
+    , mkIndexList
+    , readDWIPair
+    , getB0sMean
+    , normalizePair
   ) where
 
--- import           Data.Csv
-import Data.Yaml
 import           Data.Function
 import           Data.List
+import           Data.Yaml
 import           Development.Shake
 import           FSL
 import           GHC.Generics
 import           Text.Printf
--- import Data.Vector (toList)
-import Data.Function
--- import qualified Data.ByteString.Internal.ByteString as B
 
+data DirType = Pos | Neg
+  deriving (Show, Generic)
+
+data DWIInfo = DWIInfo
+    {_pid                  :: Int
+    ,_dirType              :: DirType
+    ,_dwi                  :: FilePath
+    ,_size                 :: Int
+    ,_b0indices            :: [Int]
+    ,_b0indicesWithMinDist :: [Int]
+    ,_b0indicesToUse       :: [Int]
+    }
+  deriving (Show, Generic)
+
+-- instance ToField [Int] where
+--   toField = toField . unwords . map show
+-- instance ToNamedRecord DWIInfo
+-- instance FromNamedRecord DWIInfo
+-- instance DefaultOrdered DWIInfo
+
+instance ToJSON DirType
+instance ToJSON DWIInfo
+instance FromJSON DWIInfo
+instance FromJSON DirType
+
+data DWIPair = DWIPair
+  { _pos :: DWIInfo
+  , _neg :: DWIInfo }
+  deriving (Show, Generic)
+
+instance ToJSON DWIPair
+instance FromJSON DWIPair
 
 type EchoSpacing = Float
 type PhaseLength = Int
@@ -38,10 +68,18 @@ b0dist = 45
 data PhaseDirection = RL | PA
   deriving (Show, Read)
 
-readPhaseLength :: PhaseDirection -> FilePath -> Action PhaseLength
-readPhaseLength pedir dwi = case pedir of
-  PA -> read . fromStdout <$> command [] "fslval" [dwi, "dim1"]
-  _   -> read . fromStdout <$> command [] "fslval" [dwi, "dim2"]
+readDWIPair :: (Int, DWI, DWI) -> Action DWIPair
+readDWIPair (pid, dwi, dwi') = mkDWIPair <$>
+                                pure pid <*>
+                                pure dwi <*>
+                                pure dwi' <*>
+                                readbval (tobval dwi) <*>
+                                readbval (tobval dwi')
+
+-- readPhaseLength :: PhaseDirection -> FilePath -> Action PhaseLength
+-- readPhaseLength pedir dwi = case pedir of
+--   PA -> read . fromStdout <$> command [] "fslval" [dwi, "dim1"]
+--   _   -> read . fromStdout <$> command [] "fslval" [dwi, "dim2"]
 
 readoutTime :: PhaseLength -> EchoSpacing -> Float
 readoutTime l echo = (echo * numPEsteps) / 1000
@@ -56,48 +94,23 @@ getValidB0Indices bs = reverse $ foldl' f [i0] indices
     f _ _ = error "getValideB0Indices: DWI must have at least two b-values."
     (i0:indices) = findIndices (< b0maxbval) bs
 
-mkDWIInfo :: DWI -> [BValue] -> Int -> DWIInfo
-mkDWIInfo dwi bs matchingLength
+mkDWIInfo :: Int -> DirType -> DWI -> [BValue] -> Int -> DWIInfo
+mkDWIInfo pid dirtype dwi bs matchingLength
   = DWIInfo
+  pid
+  dirtype
   dwi
   (length bs)
   (findIndices (< b0maxbval) bs)
   (getValidB0Indices bs)
   (filter (< matchingLength) $ getValidB0Indices bs)
 
-mkDWIPair :: DWI -> DWI -> [BValue] -> [BValue] -> DWIPair
-mkDWIPair dwi dwi' bs bs'
+mkDWIPair :: Int -> DWI -> DWI -> [BValue] -> [BValue] -> DWIPair
+mkDWIPair pid dwi dwi' bs bs'
   = DWIPair
-  (mkDWIInfo dwi bs matchingLength)
-  (mkDWIInfo dwi' bs' matchingLength)
+  (mkDWIInfo pid Pos dwi bs matchingLength)
+  (mkDWIInfo pid Neg dwi' bs' matchingLength)
   where matchingLength = (min`on`length) bs bs'
-
-data DWIInfo = DWIInfo
-    {_dwi                  :: FilePath
-    ,_size                 :: Int
-    ,_b0indices            :: [Int]
-    ,_b0indicesWithMinDist :: [Int]
-    ,_b0indicesToUse       :: [Int]
-    }
-  deriving (Show, Generic)
-
--- instance ToField [Int] where
---   toField = toField . unwords . map show
--- instance ToNamedRecord DWIInfo
--- instance FromNamedRecord DWIInfo
--- instance DefaultOrdered DWIInfo
-
-instance ToJSON DWIInfo
-instance FromJSON DWIInfo
-
-data DWIPair = DWIPair
-  { pos :: DWIInfo
-  , neg :: DWIInfo }
-  deriving (Show, Generic)
-
-instance ToJSON DWIPair
-instance FromJSON DWIPair
-
 -- dwiPairsFromCsv :: String -> [DWIPair]
 -- dwiPairsFromCsv csv =
 --   let
@@ -115,37 +128,37 @@ writeB0s out dwiinfos =
   where
     writeB0 dwiinfo = extractVols (_dwi dwiinfo) (_b0indicesToUse dwiinfo)
 
-numValidB0s :: (DWIPair -> DWIInfo) -> [DWIPair] -> Int
-numValidB0s posneg xs = sum $  map (length . _b0indicesToUse . posneg) xs
+-- writeAcqparams :: FilePath -> PhaseDirection -> EchoSpacing -> [DWIPair] -> Action ()
+-- writeAcqparams out phasedir echo dwipairs = do
+--   phaselength <- readPhaseLength phasedir (_dwi . _pos . head $ dwipairs)
+--   let
+--     readout = printf "%.6f" $ readoutTime phaselength echo
+--     (p, n) = (numValidB0s _pos dwipairs, numValidB0s _neg dwipairs)
+--     acqParamsPos =  case phasedir of
+--       PA -> "0 1 0 " ++ readout
+--       RL -> "1 0 0 " ++ readout
+--     acqParamsNeg = case phasedir of
+--       PA -> "0 -1 0 " ++ readout
+--       RL -> "-1 0 0 " ++ readout
+--     acq = replicate p acqParamsPos
+--     acq' = replicate n acqParamsNeg
+--   writeFile' out $ unlines (acq ++ acq')
 
-writeAcqparams :: FilePath -> PhaseDirection -> EchoSpacing -> [DWIPair] -> Action ()
-writeAcqparams out phasedir echo dwipairs = do
-  phaselength <- readPhaseLength phasedir (_dwi . pos . head $ dwipairs)
-  let
-    readout = printf "%.6f" $ readoutTime phaselength echo
-    (p, n) = (numValidB0s pos dwipairs, numValidB0s neg dwipairs)
-    acqParamsPos =  case phasedir of
-      PA -> "0 1 0 " ++ readout
-      RL -> "1 0 0 " ++ readout
-    acqParamsNeg = case phasedir of
-      PA -> "0 -1 0 " ++ readout
-      RL -> "-1 0 0 " ++ readout
-    acq = replicate p acqParamsPos
-    acq' = replicate n acqParamsNeg
-  writeFile' out $ unlines (acq ++ acq')
+-- writeIndexList :: FilePath -> [DWIPair] -> Action ()
+-- writeIndexList out dwipairs = writeFile' out (unlines $ map show $ mkIndex dwipairs)
 
-writeIndex :: FilePath -> [DWIPair] -> Action ()
-writeIndex out dwipairs = writeFile' out (unlines $ map show $ mkIndex dwipairs)
+-- dwis :: [DWIPair] -> [FilePath]
+-- dwis dwipairs = (map (_dwi._pos) dwipairs) ++ (map (_dwi._neg) dwipairs)
 
-mkIndex :: [DWIPair] -> [Int]
-mkIndex dwipairs = mkIndex' $ addLast b0indices size
+mkIndexList :: [DWIPair] -> [Int]
+mkIndexList dwipairs = mkIndex' $ addLast b0indices size
   where
-    posSizes = map (_size . pos) dwipairs
-    negSizes = map (_size . neg) dwipairs
+    posSizes = map (_size . _pos) dwipairs
+    negSizes = map (_size . _neg) dwipairs
     sizes = scanl (+) 0 $ posSizes ++ negSizes
     size = head . reverse $ sizes
-    posb0indices = map (_b0indicesToUse . pos) dwipairs
-    negb0indices = map (_b0indicesToUse . neg) dwipairs
+    posb0indices = map (_b0indicesToUse . _pos) dwipairs
+    negb0indices = map (_b0indicesToUse . _neg) dwipairs
     b0indices = concat $ zipWith (\is sz -> map (+sz) is) (posb0indices++negb0indices) sizes
     mkIndex' is = reverse $ foldl g [] is
       where g res i =
@@ -155,10 +168,44 @@ mkIndex dwipairs = mkIndex' $ addLast b0indices size
                     _ -> 1 + head res
               in (replicate dx val) ++ res
 
-writeCombined :: FilePath -> [DWIPair] -> Action ()
-writeCombined out dwipairs = do
-  mergeVols out $ map (_dwi . pos) dwipairs ++ map (_dwi . neg) dwipairs
-  trimVol out
+-- writeCombined :: FilePath -> [DWIPair] -> Action ()
+-- writeCombined out dwipairs = do
+--   mergeVols out $ map (_dwi . _pos) dwipairs ++ map (_dwi . _neg) dwipairs
+--   trimVol out
 
 addLast :: [a] -> a -> [a]
 addLast xs y = reverse . (y:) . reverse $ xs
+
+getB0sMean :: DWIInfo -> Action Float
+getB0sMean dwiinfo = do
+  withTempFile $ \b0s -> do
+    extractVols_ b0s (_dwi dwiinfo) (_b0indices dwiinfo)
+    command_ [] "fslmaths" [b0s, "-Tmean", b0s]
+    Stdout mean <- command [] "fslmeants" ["-i", b0s]
+    return $ read mean
+
+scaleDWI :: FilePath -> Float -> DWIInfo -> Action ()
+scaleDWI out mean0 dwiinfo = do
+  mean <- getB0sMean dwiinfo
+  command_ [] "fslmaths" [_dwi dwiinfo
+                         ,"-mul", show mean0
+                         ,"-div", show mean
+                         ,out]
+
+normalize :: Float -> DWIInfo -> Action DWIInfo
+normalize mean0 dwiinfo@DWIInfo{_dwi=dwi, _pid=pid, _dirType=dirType} =
+    case (pid,dirType) of
+      (1, Pos) -> do copyFile' dwi dwinew
+                     return $ dwiinfo {_dwi=dwinew}
+      _ -> do scaleDWI dwinew mean0 dwiinfo
+              copyFile' (tobval $ dwi) (tobval dwinew)
+              copyFile' (tobvec $ dwi) (tobvec dwinew)
+              return $ dwiinfo {_dwi=dwinew}
+    where
+      dwinew = printf "build/0_normalized/%s-%i.nii.gz" (show dirType) pid
+
+normalizePair :: Float -> DWIPair -> Action DWIPair
+normalizePair mean0 (DWIPair pos neg) = do
+    pos' <- normalize mean0 pos
+    neg' <- normalize mean0 neg
+    return $ DWIPair pos' neg'
