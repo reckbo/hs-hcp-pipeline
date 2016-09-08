@@ -35,12 +35,6 @@ data DWIInfo = DWIInfo
     }
   deriving (Show, Generic)
 
--- instance ToField [Int] where
---   toField = toField . unwords . map show
--- instance ToNamedRecord DWIInfo
--- instance FromNamedRecord DWIInfo
--- instance DefaultOrdered DWIInfo
-
 instance ToJSON DirType
 instance ToJSON DWIInfo
 instance FromJSON DWIInfo
@@ -75,11 +69,6 @@ readDWIPair (pid, dwi, dwi') = mkDWIPair <$>
                                 readbval (tobval dwi) <*>
                                 readbval (tobval dwi')
 
--- readPhaseLength :: PhaseDirection -> FilePath -> Action PhaseLength
--- readPhaseLength pedir dwi = case pedir of
---   PA -> read . fromStdout <$> command [] "fslval" [dwi, "dim1"]
---   _   -> read . fromStdout <$> command [] "fslval" [dwi, "dim2"]
-
 readoutTime :: PhaseLength -> EchoSpacing -> Float
 readoutTime l echo = (echo * numPEsteps) / 1000
   where numPEsteps = fromIntegral $ l - 1
@@ -110,14 +99,6 @@ mkDWIPair pid dwi dwi' bs bs'
   (mkDWIInfo pid Pos dwi bs matchingLength)
   (mkDWIInfo pid Neg dwi' bs' matchingLength)
   where matchingLength = (min`on`length) bs bs'
--- dwiPairsFromCsv :: String -> [DWIPair]
--- dwiPairsFromCsv csv =
---   let
---     infos = fmap toList $ decode $ B.pack csv
---   in
---     case infos of
---       (Left msg) -> error msg
---       Right infos -> map (\[i,i'] -> DWIPair i i') $ groupBy ((==)`on`_pairId) infos
 
 writeB0s :: FilePath -> [DWIInfo] -> Action ()
 writeB0s out dwiinfos =
@@ -126,28 +107,6 @@ writeB0s out dwiinfos =
      trimVol out
   where
     writeB0 dwiinfo = extractVols (_dwi dwiinfo) (_b0indicesToUse dwiinfo)
-
--- writeAcqparams :: FilePath -> PhaseDirection -> EchoSpacing -> [DWIPair] -> Action ()
--- writeAcqparams out phasedir echo dwipairs = do
---   phaselength <- readPhaseLength phasedir (_dwi . _pos . head $ dwipairs)
---   let
---     readout = printf "%.6f" $ readoutTime phaselength echo
---     (p, n) = (numValidB0s _pos dwipairs, numValidB0s _neg dwipairs)
---     acqParamsPos =  case phasedir of
---       PA -> "0 1 0 " ++ readout
---       RL -> "1 0 0 " ++ readout
---     acqParamsNeg = case phasedir of
---       PA -> "0 -1 0 " ++ readout
---       RL -> "-1 0 0 " ++ readout
---     acq = replicate p acqParamsPos
---     acq' = replicate n acqParamsNeg
---   writeFile' out $ unlines (acq ++ acq')
-
--- writeIndexList :: FilePath -> [DWIPair] -> Action ()
--- writeIndexList out dwipairs = writeFile' out (unlines $ map show $ mkIndex dwipairs)
-
--- dwis :: [DWIPair] -> [FilePath]
--- dwis dwipairs = (map (_dwi._pos) dwipairs) ++ (map (_dwi._neg) dwipairs)
 
 mkIndexList :: [DWIPair] -> [Int]
 mkIndexList dwipairs = mkIndex' $ addLast b0indices size
@@ -166,11 +125,6 @@ mkIndexList dwipairs = mkIndex' $ addLast b0indices size
                     [] -> 1
                     _ -> 1 + head res
               in (replicate dx val) ++ res
-
--- writeCombined :: FilePath -> [DWIPair] -> Action ()
--- writeCombined out dwipairs = do
---   mergeVols out $ map (_dwi . _pos) dwipairs ++ map (_dwi . _neg) dwipairs
---   trimVol out
 
 addLast :: [a] -> a -> [a]
 addLast xs y = reverse . (y:) . reverse $ xs
@@ -191,21 +145,3 @@ scaleDWI out src srcBval mean0 = do
                          ,"-mul", show mean0
                          ,"-div", show mean
                          ,out]
-
--- normalize :: Float -> DWIInfo -> Action DWIInfo
--- normalize mean0 dwiinfo@DWIInfo{_dwi=dwi, _pid=pid, _dirType=dirType} =
---     case (pid,dirType) of
---       (1, Pos) -> do copyFile' dwi dwinew
---                      return $ dwiinfo {_dwi=dwinew}
---       _ -> do scaleDWI dwinew mean0 dwiinfo
---               copyFile' (tobval $ dwi) (tobval dwinew)
---               copyFile' (tobvec $ dwi) (tobvec dwinew)
---               return $ dwiinfo {_dwi=dwinew}
---     where
---       dwinew = printf "build/0_normalized/%s-%i.nii.gz" (show dirType) pid
-
--- normalizePair :: Float -> DWIPair -> Action DWIPair
--- normalizePair mean0 (DWIPair pos neg) = do
---     pos' <- normalize mean0 pos
---     neg' <- normalize mean0 neg
---     return $ DWIPair pos' neg'

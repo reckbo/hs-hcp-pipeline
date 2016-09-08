@@ -3,6 +3,7 @@
 
 module Main where
 
+import           Data.List.Split
 import           Data.Yaml                (decodeFile, encodeFile)
 import           Development.Shake
 import           Development.Shake.Config
@@ -10,7 +11,6 @@ import           FSL
 import           Preproc
 import           System.FilePath
 import           Text.Printf
-import Data.List.Split
 
 summaryYaml :: [Char]
 summaryYaml = "build/0_normalized/dwipairs.yaml"
@@ -18,8 +18,8 @@ summaryYaml = "build/0_normalized/dwipairs.yaml"
 main :: IO ()
 main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
     usingConfigFile "hcp.cfg"
-    want ["build/3_data/data.nii.gz"
-         ,"build/3_data/nodif.nii.gz"]
+    want ["build/4_data/data.nii.gz"
+         ,"build/4_data/nodif.nii.gz"]
 
     phony "clean" $ do
         putNormal "Cleaning files in build"
@@ -27,20 +27,20 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
 
     -- Post Eddy
 
-    ["build/3_data/nodif_brain.nii.gz",
-     "build/3_data/nodif_brain_mask.nii.gz",
-     "build/3_data/nodif.nii.gz"]
+    ["build/4_data/nodif_brain.nii.gz",
+     "build/4_data/nodif_brain_mask.nii.gz",
+     "build/4_data/nodif.nii.gz"]
       *>> \[_,_,nodif] -> do
-      let dat = "build/3_data/data.nii.gz"
+      let dat = "build/4_data/data.nii.gz"
       need [dat]
       -- Remove negative intensity values (caused by spline interpolation) from final data
       command_ [] "fslmaths" [dat, "-thr", "0", dat]
-      command_ [] "bet" [dat , "build/3_data/nodif_brain" , "-m" , "-f" , "0.1"]
+      command_ [] "bet" [dat , "build/4_data/nodif_brain" , "-m" , "-f" , "0.1"]
       command_ [] "fslroi" [dat, nodif, "0", "1"]
 
-    ["build/3_data/data.nii.gz",
-     "build/3_data/bvals",
-     "build/3_data/bvecs"]
+    ["build/4_data/data.nii.gz",
+     "build/4_data/bvals",
+     "build/4_data/bvecs"]
       *>> \[out,_,_] -> do
       let deps@[summaryYaml
                ,posseries
@@ -50,7 +50,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
                ,negbval
                ,negbvec
                ,eddyimages] =
-               ["build/0_normalization/dwipairs.yaml"
+               ["build/0_normalized/dwipairs.yaml"
                ,"build/1_preproc/Pos_SeriesVolNum.txt"
                ,"build/1_preproc/Neg_SeriesVolNum.txt"
                ,"build/1_preproc/Pos.bval"

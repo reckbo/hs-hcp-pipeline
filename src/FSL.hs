@@ -19,18 +19,16 @@ module FSL
       writebvec
     ) where
 
+import           Control.Monad
 import           Development.Shake
 import           Development.Shake.FilePath
 import           Text.Printf
-import Data.List
-import Control.Monad
 
 newtype BValue = BValue Int
   deriving (Eq, Ord)
 
 instance Show BValue where
   show (BValue b) = show b
-
 
 data Vec = Vec { vx::Double,
                  vy::Double,
@@ -43,7 +41,7 @@ trim :: String -> String
 trim = unwords . words
 
 takeBaseName' :: FilePath -> String
-takeBaseName' = takeBaseName . takeBaseName 
+takeBaseName' = takeBaseName . takeBaseName
 
 replaceExtension' :: FilePath -> String -> FilePath
 replaceExtension' f ext = replaceExtension (dropExtension f) ext
@@ -103,21 +101,17 @@ extractVol_ :: FilePath -> FilePath -> Int -> Action ()
 extractVol_ out dwi idx = command [] "fslroi" [dwi, out, show idx, "1"]
 
 extractVol :: FilePath -> Int -> Action FilePath
-extractVol dwi idx
-  = out <$ extractVol_ out dwi idx
+extractVol dwi idx = out <$ extractVol_ out dwi idx
   where
     out = insertSuffix dwi (printf "-%03d" idx)
 
 extractVols :: FilePath -> [Int] -> Action FilePath
-extractVols dwi idx = extractVols_ out dwi idx >> return out
-  where
-    out = replaceExtension' dwi (printf "%s.nii.gz" (intercalate "-" $ map show idx))
+extractVols dwi idx
+  = withTempFile $ \tmpfile -> extractVols_ tmpfile dwi idx >> return tmpfile
+    -- out = replaceExtension' dwi (printf "%s.nii.gz" (intercalate "-" $ map show idx))
 
 extractVols_ :: FilePath -> FilePath -> [Int] -> Action ()
-extractVols_ out dwi idx
- = do
-    fs <- traverse (extractVol dwi) idx
-    mergeVols out fs
+extractVols_ out dwi idx = traverse (extractVol dwi) idx >>= mergeVols out
 
 mergeVols :: FilePath -> [FilePath] -> Action ()
 mergeVols out vols = unit $ command [] "fslmerge" (["-t", out] ++ vols)
