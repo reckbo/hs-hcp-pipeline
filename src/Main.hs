@@ -224,7 +224,7 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
                          PA -> read . fromStdout <$> command [] "fslval" [dwi0, "dim1"]
                          _ -> read . fromStdout <$> command [] "fslval" [dwi0, "dim2"]
         let readout = printf "%.6f" $ readoutTime phaselength echospacing
-            numB0sToUse = sum . concatMap _b0indicesToUse
+            numB0sToUse = length . concatMap _b0indicesToUse
             acqParamsPos =  case phasedir of
               PA -> "0 1 0 " ++ readout
               RL -> "1 0 0 " ++ readout
