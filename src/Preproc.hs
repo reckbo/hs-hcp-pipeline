@@ -11,7 +11,7 @@ module Preproc
     , mkIndexList
     , readDWIPair
     , getB0sMean
-    , normalizePair
+    , scaleDWI
   ) where
 
 import           Data.Function
@@ -20,7 +20,6 @@ import           Data.Yaml
 import           Development.Shake
 import           FSL
 import           GHC.Generics
-import           Text.Printf
 
 data DirType = Pos | Neg
   deriving (Show, Generic)
@@ -176,36 +175,37 @@ mkIndexList dwipairs = mkIndex' $ addLast b0indices size
 addLast :: [a] -> a -> [a]
 addLast xs y = reverse . (y:) . reverse $ xs
 
-getB0sMean :: DWIInfo -> Action Float
-getB0sMean dwiinfo = do
+getB0sMean :: FilePath -> FilePath -> Action Float
+getB0sMean dwi bval = do
+  b0indices <- findIndices (< b0maxbval) <$> readbval bval
   withTempFile $ \b0s -> do
-    extractVols_ b0s (_dwi dwiinfo) (_b0indices dwiinfo)
+    extractVols_ b0s dwi b0indices
     command_ [] "fslmaths" [b0s, "-Tmean", b0s]
     Stdout mean <- command [] "fslmeants" ["-i", b0s]
     return $ read mean
 
-scaleDWI :: FilePath -> Float -> DWIInfo -> Action ()
-scaleDWI out mean0 dwiinfo = do
-  mean <- getB0sMean dwiinfo
-  command_ [] "fslmaths" [_dwi dwiinfo
+scaleDWI :: FilePath -> FilePath -> FilePath -> Float -> Action ()
+scaleDWI out src srcBval mean0 = do
+  mean <- getB0sMean src srcBval
+  command_ [] "fslmaths" [src
                          ,"-mul", show mean0
                          ,"-div", show mean
                          ,out]
 
-normalize :: Float -> DWIInfo -> Action DWIInfo
-normalize mean0 dwiinfo@DWIInfo{_dwi=dwi, _pid=pid, _dirType=dirType} =
-    case (pid,dirType) of
-      (1, Pos) -> do copyFile' dwi dwinew
-                     return $ dwiinfo {_dwi=dwinew}
-      _ -> do scaleDWI dwinew mean0 dwiinfo
-              copyFile' (tobval $ dwi) (tobval dwinew)
-              copyFile' (tobvec $ dwi) (tobvec dwinew)
-              return $ dwiinfo {_dwi=dwinew}
-    where
-      dwinew = printf "build/0_normalized/%s-%i.nii.gz" (show dirType) pid
+-- normalize :: Float -> DWIInfo -> Action DWIInfo
+-- normalize mean0 dwiinfo@DWIInfo{_dwi=dwi, _pid=pid, _dirType=dirType} =
+--     case (pid,dirType) of
+--       (1, Pos) -> do copyFile' dwi dwinew
+--                      return $ dwiinfo {_dwi=dwinew}
+--       _ -> do scaleDWI dwinew mean0 dwiinfo
+--               copyFile' (tobval $ dwi) (tobval dwinew)
+--               copyFile' (tobvec $ dwi) (tobvec dwinew)
+--               return $ dwiinfo {_dwi=dwinew}
+--     where
+--       dwinew = printf "build/0_normalized/%s-%i.nii.gz" (show dirType) pid
 
-normalizePair :: Float -> DWIPair -> Action DWIPair
-normalizePair mean0 (DWIPair pos neg) = do
-    pos' <- normalize mean0 pos
-    neg' <- normalize mean0 neg
-    return $ DWIPair pos' neg'
+-- normalizePair :: Float -> DWIPair -> Action DWIPair
+-- normalizePair mean0 (DWIPair pos neg) = do
+--     pos' <- normalize mean0 pos
+--     neg' <- normalize mean0 neg
+--     return $ DWIPair pos' neg'

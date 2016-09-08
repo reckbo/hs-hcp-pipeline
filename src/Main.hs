@@ -10,6 +10,7 @@ import           FSL
 import           Preproc
 import           System.FilePath
 import           Text.Printf
+import Data.List.Split
 
 summaryYaml :: [Char]
 summaryYaml = "build/0_normalized/dwipairs.yaml"
@@ -234,22 +235,43 @@ main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do
             acq' = replicate (numB0sToUse $ map _neg dwipairs) acqParamsNeg
         writeFile' out $ unlines (acq ++ acq')
 
-
-    ["build/0_normalized/Pos-*.nii.gz",
-     "build/0_normalized/Pos-*.bval",
-     "build/0_normalized/Pos-*.bvec",
-     "build/0_normalized/Neg-*.nii.gz",
-     "build/0_normalized/Neg-*.bval",
-     "build/0_normalized/Neg-*.bvec",
-     "build/0_normalized/dwipairs*.yaml"]
-      *>> \_ -> do
+    "build/0_normalized/dwipairs.yaml"
+      %> \out -> do
         Just posdwis <- fmap words <$> getConfig "posdwis"
         Just negdwis <- fmap words <$> getConfig "negdwis"
-        let bvals = map tobval (posdwis ++ negdwis)
-            bvecs = map tobvec (posdwis ++ negdwis)
-        need $ posdwis ++ negdwis ++ bvals ++ bvecs
         dwipairs <- traverse readDWIPair $ zip3 [1..] posdwis negdwis
-        let dwiinfo0 = _pos . head $ dwipairs
-        mean0 <- getB0sMean dwiinfo0
-        dwipairs' <- traverse (normalizePair mean0) dwipairs
-        liftIO $ encodeFile "build/0_normalized/dwipairs.yaml" dwipairs'
+        let updatePath dwiinfo@DWIInfo{_dwi=dwi,_pid=pid,_dirType=dirType}
+              = dwiinfo {_dwi=dwinew}
+              where
+                dwinew = printf "build/0_normalized/%s-%i.nii.gz" (show dirType) pid
+            posNew = map (updatePath._pos) dwipairs
+            negNew = map (updatePath._neg) dwipairs
+        liftIO $ encodeFile out $ zipWith DWIPair posNew negNew
+
+    ["build/0_normalized/*.nii.gz",
+     "build/0_normalized/*.bval",
+     "build/0_normalized/*.bvec"]
+      *>> \[dwiOut, bvalOut, bvecOut] ->
+        let
+          meanfile = "build/0_normalized/Pos-1-meanb0"
+          [dirtype, pid] = splitOn "-" $ takeBaseName' dwiOut
+          process key pid = do
+            Just dwis <- fmap words <$> getConfig key
+            let dwiSrc = dwis !! (pid-1)
+            need [dwiSrc, tobval dwiSrc, tobvec dwiSrc, meanfile]
+            mean0 <- read <$> readFile' meanfile
+            scaleDWI dwiOut dwiSrc (tobval dwiSrc) mean0
+            copyFile' (tobval dwiSrc) bvalOut
+            copyFile' (tobvec dwiSrc) bvecOut
+        in
+          case dirtype of
+            "Pos" -> process "posdwis" (read pid)
+            "Neg" -> process "negdwis" (read pid)
+            _ -> error "This rule builds dwi's with format e.g. Pos-1.nii.gz"
+
+    "build/0_normalized/Pos-1-meanb0"
+      %> \out -> do
+        Just posdwi0 <- fmap (head . words) <$> getConfig "posdwis"
+        need [posdwi0, tobval posdwi0]
+        mean0 <- getB0sMean posdwi0 (tobval posdwi0)
+        writeFile' out $ show mean0

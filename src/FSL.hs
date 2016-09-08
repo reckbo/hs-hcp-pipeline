@@ -2,6 +2,7 @@ module FSL
     (
       BValue (..),
       replaceExtension',
+      takeBaseName',
       extractVol_,
       extractVol,
       extractVols_,
@@ -40,6 +41,9 @@ instance Show Vec where
 
 trim :: String -> String
 trim = unwords . words
+
+takeBaseName' :: FilePath -> String
+takeBaseName' = takeBaseName . takeBaseName 
 
 replaceExtension' :: FilePath -> String -> FilePath
 replaceExtension' f ext = replaceExtension (dropExtension f) ext
