@@ -1,5 +1,4 @@
-
-module Preprocessing
+module Stage.Preprocessing
 (  posbval
  , negbval
  , posnegbval
@@ -24,11 +23,11 @@ import           Development.Shake.FilePath
 import           FSL                        (mergeVols, readbval, readbvec,
                                              tobval, tobvec, trimVol, writebval,
                                              writebvec)
-import qualified Normalize
-import           Preproc                    (DWIInfo (..), DWIPair (..),
-                                             PhaseDirection (..), mkIndexList,
-                                             readoutTime, writeB0s)
+import           Preproc                    (mkIndexList, readoutTime, writeB0s)
+import qualified Stage.Normalize            as Normalize
 import           Text.Printf
+import           Types                      (DWIInfo (..), DWIPair (..),
+                                             PhaseDirection (..))
 
 outdir :: [Char]
 outdir = "hcp-output/1_preproc"
@@ -155,4 +154,3 @@ rules = do
             acq = replicate (numB0sToUse $ map _pos dwipairs) acqParamsPos
             acq' = replicate (numB0sToUse $ map _neg dwipairs) acqParamsNeg
         writeFile' out $ unlines (acq ++ acq')
-

@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-module Normalize
+module Stage.Normalize
   (
     dwipairs_yaml,
     meanb0_file,
@@ -14,8 +14,8 @@ import           Development.Shake.Config
 import           Development.Shake.FilePath
 import           Text.Printf
 import           FSL                        (takeBaseName', tobval, tobvec)
-import           Preproc                    (DWIInfo (..), DWIPair (..),
-                                             getB0sMean, readDWIPair, scaleDWI)
+import           Preproc                    (getB0sMean, readDWIPair, scaleDWI)
+import Types (DWIInfo (..), DWIPair (..))
 
 outdir :: [Char]
 outdir = "hcp-output/0_normalized"

@@ -1,4 +1,4 @@
-module Topup
+module Stage.Topup
   (  nodif_brain_mask
    , outprefix
    , fieldcoef
@@ -11,7 +11,7 @@ import           Development.Shake.FilePath
 import           FSL (extractVol_
                      , getDim4)
 import           Text.Printf
-import qualified Preprocessing
+import qualified Stage.Preprocessing as Preprocessing
 
 outdir :: [Char]
 outdir = "hcp-output/2_topup"

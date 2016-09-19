@@ -1,16 +1,16 @@
-module PostEddy
+module Stage.PostEddy
   ( datavol
   , nodif
   , rules
   ) where
 
+import           Data.Yaml           (decodeFile)
 import           Development.Shake
+import qualified Stage.Eddy          as Eddy
+import qualified Stage.Normalize     as Normalize
+import qualified Stage.Preprocessing as Preprocessing
 import           System.FilePath
-import           Preproc
-import           Data.Yaml                (decodeFile)
-import qualified Normalize
-import qualified Preprocessing
-import qualified Eddy
+import           Types               (DWIInfo (..), DWIPair (..))
 
 outdir :: [Char]
 outdir = "hcp-output/4_data"

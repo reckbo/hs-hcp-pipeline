@@ -1,12 +1,12 @@
-module Eddy
+module Stage.Eddy
   ( eddy_unwarped_images
   , rules
   ) where
 
-import Development.Shake
-import Development.Shake.FilePath
-import qualified Preprocessing
-import qualified Topup
+import           Development.Shake
+import           Development.Shake.FilePath
+import qualified Stage.Preprocessing        as Preprocessing
+import qualified Stage.Topup                as Topup
 
 outdir :: [Char]
 outdir = "hcp-output/3_eddy"

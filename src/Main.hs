@@ -2,11 +2,11 @@ module Main where
 
 import           Development.Shake
 import           Development.Shake.Config
-import qualified PostEddy
-import qualified Eddy
-import qualified Topup
-import qualified Normalize
-import qualified Preprocessing
+import qualified Stage.Eddy               as Eddy
+import qualified Stage.Normalize          as Normalize
+import qualified Stage.PostEddy           as PostEddy
+import qualified Stage.Preprocessing      as Preprocessing
+import qualified Stage.Topup              as Topup
 
 main :: IO ()
 main = shakeArgs shakeOptions{shakeFiles="build", shakeVerbosity=Chatty} $ do

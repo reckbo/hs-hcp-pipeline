@@ -1,53 +1,19 @@
-{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleInstances #-}
 module Preproc
-  (   DWIInfo (..)
-    , DWIPair (..)
-    , PhaseDirection (..)
-    , DirType (..)
-    , mkDWIPair
-    , readoutTime
-    , writeB0s
-    , mkIndexList
-    , readDWIPair
-    , getB0sMean
-    , scaleDWI
-
+  ( mkDWIPair
+   , readoutTime
+   , writeB0s
+   , mkIndexList
+   , readDWIPair
+   , getB0sMean
+   , scaleDWI
   ) where
 
 import           Data.Function
 import           Data.List
-import           Data.Yaml
 import           Development.Shake
 import           FSL
-import           GHC.Generics
-
-data DirType = Pos | Neg
-  deriving (Show, Generic)
-
-data DWIInfo = DWIInfo
-    {_pid                  :: Int
-    ,_dirType              :: DirType
-    ,_dwi                  :: FilePath
-    ,_size                 :: Int
-    ,_b0indices            :: [Int]
-    ,_b0indicesWithMinDist :: [Int]
-    ,_b0indicesToUse       :: [Int]
-    }
-  deriving (Show, Generic)
-
-instance ToJSON DirType
-instance ToJSON DWIInfo
-instance FromJSON DWIInfo
-instance FromJSON DirType
-
-data DWIPair = DWIPair
-  { _pos :: DWIInfo
-  , _neg :: DWIInfo }
-  deriving (Show, Generic)
-
-instance ToJSON DWIPair
-instance FromJSON DWIPair
+import Types (DWIInfo (..), DWIPair (..), DirType (..))
 
 type EchoSpacing = Float
 type PhaseLength = Int
@@ -58,9 +24,6 @@ b0maxbval = BValue 50
 
 b0dist :: Int
 b0dist = 45
-
-data PhaseDirection = RL | PA
-  deriving (Show, Read)
 
 readDWIPair :: (Int, DWI, DWI) -> Action DWIPair
 readDWIPair (pid, dwi, dwi') = mkDWIPair <$>
