@@ -23,11 +23,11 @@ import           Development.Shake.FilePath
 import           FSL                        (mergeVols, readbval, readbvec,
                                              tobval, tobvec, trimVol, writebval,
                                              writebvec)
-import           Preproc                    (mkIndexList, readoutTime, writeB0s)
 import qualified Stage.Normalize            as Normalize
 import           Text.Printf
 import           Types                      (DWIInfo (..), DWIPair (..),
                                              PhaseDirection (..))
+import           Util                       (mkIndexList, readoutTime, writeB0s)
 
 outdir :: [Char]
 outdir = "hcp-output/1_preproc"

@@ -36,4 +36,3 @@ rules = do
                           ,"--flm=quadratic"
                           ,"-v"
                           ,"--out="++out]
-

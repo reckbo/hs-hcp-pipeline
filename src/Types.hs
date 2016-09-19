@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Types
   (   DWIInfo (..)
     , DWIPair (..)
@@ -6,8 +6,8 @@ module Types
     , DirType (..)
   ) where
 
-import           GHC.Generics
 import           Data.Yaml
+import           GHC.Generics
 
 data DirType = Pos | Neg
   deriving (Show, Generic)

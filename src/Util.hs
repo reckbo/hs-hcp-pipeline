@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
-module Preproc
+module Util
   ( mkDWIPair
    , readoutTime
    , writeB0s
@@ -13,7 +13,7 @@ import           Data.Function
 import           Data.List
 import           Development.Shake
 import           FSL
-import Types (DWIInfo (..), DWIPair (..), DirType (..))
+import           Types             (DWIInfo (..), DWIPair (..), DirType (..))
 
 type EchoSpacing = Float
 type PhaseLength = Int

@@ -12,10 +12,10 @@ import           Data.Yaml                  (encodeFile)
 import           Development.Shake
 import           Development.Shake.Config
 import           Development.Shake.FilePath
-import           Text.Printf
 import           FSL                        (takeBaseName', tobval, tobvec)
-import           Preproc                    (getB0sMean, readDWIPair, scaleDWI)
-import Types (DWIInfo (..), DWIPair (..))
+import           Text.Printf
+import           Types                      (DWIInfo (..), DWIPair (..))
+import           Util                       (getB0sMean, readDWIPair, scaleDWI)
 
 outdir :: [Char]
 outdir = "hcp-output/0_normalized"

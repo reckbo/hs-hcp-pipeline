@@ -8,10 +8,9 @@ module Stage.Topup
 
 import           Development.Shake
 import           Development.Shake.FilePath
-import           FSL (extractVol_
-                     , getDim4)
+import           FSL                        (extractVol_, getDim4)
+import qualified Stage.Preprocessing        as Preprocessing
 import           Text.Printf
-import qualified Stage.Preprocessing as Preprocessing
 
 outdir :: [Char]
 outdir = "hcp-output/2_topup"
